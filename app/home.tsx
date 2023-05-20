@@ -1,18 +1,19 @@
-import { Textarea, SegmentedControl } from "@mantine/core";
+import { Textarea, SegmentedControl, Switch } from "@mantine/core";
 import { useState } from "react";
 
 const Home = () => {
     const [showResult, setShowResult] = useState('testcase');
-    // const [resultor]
 
     return (
         <div>
-            <div className='mt-7 ml-24 font-semibold text-4xl tracking-widest'>
+            <div className='mt-7 ml-24 font-semibold text-4xl tracking-widest flex'>
                 Three Sum
                 <SegmentedControl value={showResult} onChange={setShowResult} ml={200} data={[
                     { label: "Testcase", value: "testcase" },
                     { label: "Result", value: "result" }
                 ]} className="bg-white/50" />
+                <Switch label="create file" mx={'auto'} my={'auto'} />
+                <Switch label="hide solved" mx={'auto'} my={'auto'} />
             </div>
 
 
