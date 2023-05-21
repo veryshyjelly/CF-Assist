@@ -1,11 +1,17 @@
-use std::{collections::HashSet, path::Path};
+use std::{
+    collections::{HashMap, HashSet},
+    path::Path,
+};
 
 use serde::{Deserialize, Serialize};
+
+use crate::testcase::Testcase;
 
 pub struct Problemset {
     pub problems: Vec<Problem>,
     pub filtered_problem: Vec<Problem>,
     pub solved: HashSet<Problem>,
+    pub testcases: HashMap<String, Vec<Testcase>>,
     pub current_index: usize, // current_problem: core::slice::Iter<Problem>,
     pub show_solved: bool,
     pub filter: Filter,
@@ -25,6 +31,7 @@ impl Problemset {
             problems: vec![],
             filtered_problem: vec![],
             solved: HashSet::new(),
+            testcases: HashMap::new(),
             current_index: 0,
             show_solved: true,
             filter: Filter::default(),
@@ -104,6 +111,24 @@ impl Problemset {
             return Ok(self.filtered_problem[self.current_index].clone());
         }
         Err("no previous problem".to_string())
+    }
+    pub fn problem_solved(&mut self) -> Result<(), String> {
+        let p = self.filtered_problem[self.current_index].clone();
+        self.solved.insert(p);
+        Ok(())
+    }
+    pub fn get_testcase(&mut self, contest_id: i64, index: &String) -> Option<&Vec<Testcase>> {
+        self.testcases.get(&format!("{}{}", contest_id, index))
+    }
+    pub fn save_testcase(
+        &mut self,
+        contest_id: i64,
+        index: &String,
+        cases: Vec<Testcase>,
+    ) -> Result<(), String> {
+        self.testcases
+            .insert(format!("{}{}", contest_id, index), cases);
+        Ok(())
     }
 }
 

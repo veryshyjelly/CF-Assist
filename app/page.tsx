@@ -21,7 +21,7 @@ export default function Home() {
   return (
     <MantineProvider>
       <ModalsProvider>
-        <Notifications limit={5} />
+        <Notifications limit={5} w={'auto'} />
         <main className={inconso.className}>
           {started && <HomePage rating={rating} tags={tags} />}
           {!started && <Starter start={setStarted} tags={tags} rating={rating}

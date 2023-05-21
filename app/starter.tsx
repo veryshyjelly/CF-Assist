@@ -33,7 +33,7 @@ function Starter(props: {
         if (to_continue) to_continue = await fetch_solved(); else return;
         if (to_continue) to_continue = await get_problemset(); else return;
         if (to_continue) to_continue = await set_rating(rating, tags); else return;
-        if (to_continue && sorting !== '') to_continue = await sort_problems(sorting); else return;
+        if (to_continue && sorting !== '') to_continue = await sort_problems(sorting);
         props.start(true);
     }
 
@@ -108,7 +108,7 @@ const Tags = (props: { tags: string[], setTags: (value: string[]) => void }) => 
         <div className='p-5'>
             <Chip.Group multiple value={props.tags} onChange={props.setTags}>
                 <Group>
-                    {tags.map(v => <Chip variant='light' value={v}>{v}</Chip>)}
+                    {tags.map(v => <Chip key={v} variant='light' value={v}>{v}</Chip>)}
                 </Group>
             </Chip.Group>
         </div>
@@ -122,7 +122,7 @@ const Sorts = (props: { sorting: string, setSorting: (value: string) => void }) 
         <div className='py-10 px-16'>
             <Chip.Group value={props.sorting} onChange={props.setSorting}>
                 <Group>
-                    {sort_by.map(v => <Chip variant='light' color='grape' value={v}>{v}</Chip>)}
+                    {sort_by.map(v => <Chip key={v} variant='light' color='grape' value={v}>{v}</Chip>)}
                 </Group>
             </Chip.Group>
         </div>

@@ -11,7 +11,8 @@ export const set_directory = async (directory: string) => {
             id: "directory_set",
             message: "Directory set successfull",
             icon: <IconCheck size="1.1rem" />,
-            color: "teal"
+            autoClose: 1000,
+            color: "teal",
         })
     } catch (err) {
         console.log(`error`, err);
@@ -20,7 +21,7 @@ export const set_directory = async (directory: string) => {
             title: "Directory not found",
             message: "The specified directory was not found",
             icon: <IconX size="1.1rem" />,
-            color: "red"
+            color: "red",
         })
         return false;
     }
@@ -34,6 +35,7 @@ export const fetch_solved = async () => {
             id: "solved_fetch",
             message: "Solved problems fetched successfully",
             icon: <IconCheck size="1.1rem" />,
+            autoClose: 1000,
             color: "teal"
         });
     } catch (err) {
@@ -67,6 +69,7 @@ export const get_problemset = async () => {
             id: "problems_got",
             message: "Problems fetched successfully",
             icon: <IconCheck size="1.1rem" />,
+            autoClose: 1000,
             color: "teal"
         });
     } catch (err) {
@@ -90,6 +93,7 @@ export const set_rating = async (rating: [number, number], tags: string[]) => {
             id: "ratings_set",
             message: "Filters set successfull",
             icon: <IconCheck size="1.1rem" />,
+            autoClose: 1000,
             color: "teal"
         });
     } catch (err) {
@@ -159,4 +163,25 @@ export const sort_problems = async (sorting: string) => {
         return false;
     }
     return true;
+}
+
+export const get_testcases = async (contest_id: number, index: string) => {
+    let res;
+    try {
+        res = await invoke('get_testcase', { contestId: contest_id, index: index })
+    } catch (e) {
+        console.log(`error ${e}`)
+        try {
+            res = await invoke('fetch_testcase', { contestId: contest_id, index: index })
+        } catch (err) {
+            console.log(`error ${err}`)
+            notifications.show({
+                id: "no_testcase",
+                message: "Cannot get testcase",
+                icon: <IconX size="1.1rem" />,
+                color: "red"
+            });
+        }
+    }
+    return res;
 }

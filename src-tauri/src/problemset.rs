@@ -1,4 +1,5 @@
 use crate::problem::{MyCfResult, Problem, Problemset, SolvedResult, SortProblem};
+use crate::testcase::{get_testcases, Testcase};
 use reqwest::Client;
 use std::{
     collections::HashSet,
@@ -42,6 +43,43 @@ pub async fn get_problemset(problemset: tauri::State<'_, ProblemsetState>) -> Re
 
     // println!("{:?}", problemset.0.lock().unwrap().problems);
     Ok(())
+}
+
+#[tauri::command]
+pub async fn get_testcase(
+    contest_id: i64,
+    index: String,
+    problemset: tauri::State<'_, ProblemsetState>,
+) -> Result<Vec<Testcase>, String> {
+    match problemset
+        .0
+        .lock()
+        .unwrap()
+        .get_testcase(contest_id, &index)
+    {
+        Some(v) => Ok(v.to_vec()),
+        None => Err("cannot get testcases".to_string()),
+    }
+}
+
+#[tauri::command]
+pub async fn fetch_testcase(
+    contest_id: i64,
+    index: String,
+    problemset: tauri::State<'_, ProblemsetState>,
+) -> Result<Vec<Testcase>, String> {
+    match get_testcases(contest_id, &index).await {
+        Ok(v) => Ok({
+            problemset
+                .0
+                .lock()
+                .unwrap()
+                .save_testcase(contest_id, &index, v.clone())
+                .unwrap();
+            v
+        }),
+        Err(_) => Err("cannot get testcases".to_string()),
+    }
 }
 
 #[tauri::command]
@@ -143,11 +181,7 @@ pub async fn prev_problem(
 
 #[tauri::command]
 pub async fn problem_solved(problemset: tauri::State<'_, ProblemsetState>) -> Result<(), String> {
-    let p = problemset.0.lock().unwrap().filtered_problem
-        [problemset.0.lock().unwrap().current_index]
-        .clone();
-    problemset.0.lock().unwrap().solved.insert(p);
-    Ok(())
+    problemset.0.lock().unwrap().problem_solved()
 }
 
 #[tauri::command]

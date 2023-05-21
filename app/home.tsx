@@ -1,8 +1,8 @@
 import { Textarea, SegmentedControl, Switch } from "@mantine/core";
 import { useEffect, useState } from "react";
-import { get_problem, next_problem, prev_problem } from "./functions";
+import { get_problem, get_testcases, next_problem, prev_problem } from "./functions";
 import { notifications } from "@mantine/notifications";
-import { IconX } from "@tabler/icons-react";
+import { IconCheck, IconX } from "@tabler/icons-react";
 
 const Home = (props: { tags: string[], rating: [number, number] }) => {
     const { tags, rating } = props;
@@ -11,28 +11,42 @@ const Home = (props: { tags: string[], rating: [number, number] }) => {
     const [hideSolved, setHideSolved] = useState(false);
     const [problem, setProblem] = useState<unknown>({
         name: "Question name here",
+        contestId: 0
     });
+    const [testcases, setTestCases] = useState<unknown>();
+    const [indexMax, setIndexMax] = useState(0);
+    const [caseIndex, setCaseIndex] = useState(0);
 
     const home_get_problem = () => {
         get_problem().then(r => {
-            setProblem(r)
+            if (r) setProblem(r);
             console.log(r);
-        }).catch(err => {
-            notifications.show({
-                id: "problem_not_get",
-                message: "Couldn't get problem",
-                icon: <IconX size="1.1rem" />,
-                color: "red"
-            })
-        });
+        })
     }
+
+    useEffect(() => {
+        if (problem.contestId !== 0) {
+            get_testcases(problem.contestId, problem.index).then(r => {
+                console.log(r);
+                setIndexMax(r.length)
+                setTestCases(r);
+                notifications.show({
+                    id: "got_testcases",
+                    message: "Fetched test cases",
+                    icon: <IconCheck size="1.1rem" />,
+                    color: "teal",
+                    autoClose: 1000
+                });
+            })
+        }
+    }, [problem])
 
     useEffect(home_get_problem, [tags, rating]);
 
 
     return (
         <div>
-            <div className='mt-7 ml-12 font-semibold text-4xl tracking-widest flex whitespace-nowrap'>
+            <div className='mt-7 ml-12 font-semibold text-4xl tracking-wider flex whitespace-nowrap'>
                 <div className="w-96 overflow-hidden h-12">
                     {problem.name}
                 </div>
@@ -54,16 +68,16 @@ const Home = (props: { tags: string[], rating: [number, number] }) => {
 
                 <div className="mt-14 h-[31rem] flex flex-row overflow-hidden">
                     <div className="px-24 py-20">
-                        <SegmentedControl ml={200} data={[
-                            { label: "Case 1", value: "case1" },
-                            { label: "Case 2", value: "case2" }
-                        ]} className="bg-white/50 mx-auto" size="md" orientation="vertical" />
+                        <SegmentedControl ml={200} onChange={(v) => setCaseIndex(parseInt(v) - 1)} value={`${caseIndex + 1}`} data={
+                            Array(indexMax).fill(0).map((_, i) => { return { label: `Case ${i + 1}`, value: `${i + 1}` } })
+                        } className="bg-white/50 mx-auto" size="md" orientation="vertical" />
 
                     </div>
                     {showResult === 'result' && <>
                         <div className="mt-12 h-[20rem] w-[18rem] font-[500] text-3xl bg-[#00b2ca] relative text-center">
                             Answer
-                            <Textarea className={`h-[18rem] w-[18rem] px-2 top-8 bg-[#ddccba] absolute`}
+                            <Textarea value={testcases ? testcases[caseIndex]?.output : ""}
+                                className={`h-[18rem] w-[18rem] px-2 top-8 bg-[#ddccba] absolute`}
                                 variant="unstyled" maxRows={12} autosize />
                             <div className={`h-[20rem] w-[18rem] top-[15.5rem] left-[18rem] bg-[#00b2ca] 
                                     drop-shadow-xl absolute skew-y-[60deg]`}></div>
@@ -84,7 +98,8 @@ const Home = (props: { tags: string[], rating: [number, number] }) => {
                     {showResult === 'testcase' && <>
                         <div className="ml-16 mt-5 h-[20rem] w-[18rem] font-[500] text-3xl bg-[#00b2ca] relative text-center">
                             Input
-                            <Textarea className={`h-[18rem] w-[18rem] px-2 top-8 bg-[#ddccba] absolute`}
+                            <Textarea value={testcases ? testcases[caseIndex]?.input : ""}
+                                className={`h-[18rem] w-[18rem] px-2 top-8 bg-[#ddccba] absolute`}
                                 variant="unstyled" maxRows={12} autosize />
                             <div className={`h-[20rem] w-[18rem] top-[10.7rem] left-[18rem] bg-[#00b2ca] 
                                 drop-shadow-xl absolute skew-y-[50deg]`}></div>

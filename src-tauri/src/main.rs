@@ -23,6 +23,8 @@ fn main() {
             problem_solved,
             create_solved,
             sort_problems,
+            get_testcase,
+            fetch_testcase
         ])
         .run(tauri::generate_context!())
         .expect("error while running tauri application");
