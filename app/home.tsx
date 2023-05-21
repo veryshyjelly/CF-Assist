@@ -9,16 +9,18 @@ const Home = (props: { tags: string[], rating: [number, number] }) => {
     const [showResult, setShowResult] = useState('testcase');
     const [createFile, setCreateFile] = useState(false);
     const [hideSolved, setHideSolved] = useState(false);
-    const [problem, setProblem] = useState<unknown>({
+    const [problem, setProblem] = useState<{ contestId: number, name: string, index: string }>({
         name: "Question name here",
-        contestId: 0
+        contestId: 0,
+        index: "A"
     });
-    const [testcases, setTestCases] = useState<unknown>();
+    const [testcases, setTestCases] = useState<{ input: string, output: string }[]>();
     const [indexMax, setIndexMax] = useState(0);
     const [caseIndex, setCaseIndex] = useState(0);
 
     const home_get_problem = () => {
         get_problem().then(r => {
+            // @ts-ignore
             if (r) setProblem(r);
             console.log(r);
         })
@@ -27,8 +29,10 @@ const Home = (props: { tags: string[], rating: [number, number] }) => {
     useEffect(() => {
         if (problem.contestId !== 0) {
             get_testcases(problem.contestId, problem.index).then(r => {
-                console.log(r);
+                // console.log(r);
+                // @ts-ignore
                 setIndexMax(r.length)
+                // @ts-ignore 
                 setTestCases(r);
                 notifications.show({
                     id: "got_testcases",
@@ -54,7 +58,7 @@ const Home = (props: { tags: string[], rating: [number, number] }) => {
                     { label: "Testcase", value: "testcase" },
                     { label: "Result", value: "result" }
                 ]} className="bg-white/50" />
-                <div className="relative flex flex-col left-16">
+                <div className="relative flex flex-col left-20">
                     <Switch label="create file" checked={createFile} onChange={(e) => setCreateFile(e.currentTarget.checked)}
                         my={'auto'} offLabel="OFF" onLabel="ON " />
                     <Switch label="hide solved" checked={hideSolved} onChange={(e) => setHideSolved(e.currentTarget.checked)}

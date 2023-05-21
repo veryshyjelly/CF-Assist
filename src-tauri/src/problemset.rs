@@ -105,9 +105,13 @@ pub async fn fetch_solved(problemset: tauri::State<'_, ProblemsetState>) -> Resu
 
 #[tauri::command]
 pub async fn create_solved(problemset: tauri::State<'_, ProblemsetState>) -> Result<(), String> {
-    let mut file = match fs::File::create(Path::new(&problemset.0.lock().unwrap().directory)) {
+    let dir = problemset.0.lock().unwrap().directory.clone();
+    let mut solved_file: PathBuf = Path::new(&dir).into();
+    solved_file.push("solved.json");
+    let mut file = match fs::File::create(solved_file) {
         Ok(file) => file,
-        Err(_) => {
+        Err(err) => {
+            println!("{}", err);
             return Err("error while creating file".to_string());
         }
     };

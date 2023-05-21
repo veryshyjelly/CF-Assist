@@ -167,8 +167,6 @@ pub struct Problem {
     pub rating: usize,
     pub contest_id: i64,
     pub index: String,
-    #[serde(default)]
-    pub problemset_name: String,
     pub name: String,
     #[serde(default)]
     pub tags: Vec<String>,

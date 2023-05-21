@@ -12,14 +12,17 @@
   },
   "tauri": {
     "allowlist": {
-      "fs": {
-        "all": true
-      },
       "dialog": {
-        "all": true
+        "confirm": true,
+        "open": true
       },
-      "os": {
-        "all": true
+      "fs": {
+        "copyFile": true,
+        "exists": true,
+        "readDir": true,
+        "readFile": true,
+        "writeFile": true,
+        "createDir": true
       }
     },
     "bundle": {

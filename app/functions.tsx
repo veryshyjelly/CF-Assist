@@ -56,6 +56,14 @@ export const create_solved = async () => {
             message: "created solved.json file",
         });
     } catch (err) {
+        console.log(err)
+        notifications.show({
+            id: "solved_not_created",
+            message: "Failed to create solved.json file",
+            icon: <IconX size="1.1rem" />,
+            color: "red"
+        });
+
         return false;
     }
     return true;
