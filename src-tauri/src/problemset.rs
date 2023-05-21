@@ -206,3 +206,23 @@ pub async fn sort_problems(
     };
     problemset.0.lock().unwrap().sort_problems(sort_function)
 }
+
+#[tauri::command]
+pub async fn set_hide_solved(
+    value: bool,
+    problemset: tauri::State<'_, ProblemsetState>,
+) -> Result<(), String> {
+    problemset.0.lock().unwrap().show_solved = !value;
+    println!("show_solved set to {}", value);
+    Ok(())
+}
+
+#[tauri::command]
+pub async fn create_file(problemset: tauri::State<'_, ProblemsetState>) -> Result<(), String> {
+    problemset.0.lock().unwrap().create_file()
+}
+
+#[tauri::command]
+pub async fn open_link(problemset: tauri::State<'_, ProblemsetState>) -> Result<(), String> {
+    problemset.0.lock().unwrap().open_link()
+}

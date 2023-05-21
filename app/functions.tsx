@@ -193,3 +193,58 @@ export const get_testcases = async (contest_id: number, index: string) => {
     }
     return res;
 }
+
+export const problem_solved = async () => {
+    try {
+        await invoke('problem_solved');
+    } catch {
+        notifications.show({
+            id: "not_solved",
+            message: "Error ocurred while saving solved status",
+            icon: <IconX size="1.1rem" />,
+            color: "red"
+        });
+    }
+}
+
+export const set_hide_solved = async (value: boolean) => {
+    try {
+        await invoke('set_hide_solved', { value: value })
+    } catch (err) {
+        console.log(err);
+        notifications.show({
+            id: "hide_not_set",
+            message: "Error ocurred while setting hide solved",
+            icon: <IconX size="1.1rem" />,
+            color: "red"
+        });
+    }
+}
+
+export const create_file = async () => {
+    try {
+        await invoke('create_file');
+    } catch (err) {
+        console.log(err);
+        notifications.show({
+            id: "file_not_create",
+            message: "Error while creating solution file",
+            icon: <IconX size="1.1rem" />,
+            color: "red"
+        });
+    }
+}
+
+export const open_link = async () => {
+    try {
+        await invoke('open_link');
+    } catch (err) {
+        console.log(err);
+        notifications.show({
+            id: "link_not_open",
+            message: "Error while opening link",
+            icon: <IconX size="1.1rem" />,
+            color: "red"
+        });
+    }
+}

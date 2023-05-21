@@ -1,6 +1,7 @@
 use std::{
     collections::{HashMap, HashSet},
-    path::Path,
+    fs::File,
+    path::{Path, PathBuf},
 };
 
 use serde::{Deserialize, Serialize};
@@ -108,6 +109,15 @@ impl Problemset {
     pub fn prev_problem(&mut self) -> Result<Problem, String> {
         if self.current_index > 0 {
             self.current_index -= 1;
+        }
+        while self.current_index > 0
+            && self
+                .solved
+                .contains(&self.filtered_problem[self.current_index])
+        {
+            self.current_index -= 1;
+        }
+        if self.current_index > 0 {
             return Ok(self.filtered_problem[self.current_index].clone());
         }
         Err("no previous problem".to_string())
@@ -129,6 +139,37 @@ impl Problemset {
         self.testcases
             .insert(format!("{}{}", contest_id, index), cases);
         Ok(())
+    }
+    pub fn create_file(&mut self) -> Result<(), String> {
+        let mut file_name = self.get_problem()?.name;
+        file_name = file_name
+            .to_lowercase()
+            .trim()
+            .split(" ")
+            .collect::<Vec<&str>>()
+            .join("_")
+            + ".rs";
+        let mut new_file: PathBuf = Path::new(&(self.directory.clone() + "/src/bin")).into();
+        // new_file.push("src/bin");
+        new_file.push(&file_name);
+        if !new_file.is_file() {
+            return match File::create(new_file) {
+                Ok(_) => Ok(()),
+                Err(err) => Err(format!("error while creating file {}", err)),
+            };
+        }
+        Ok(())
+    }
+    pub fn open_link(&mut self) -> Result<(), String> {
+        let problem = self.get_problem()?;
+        let link = format!(
+            "https://codeforces.com/problemset/problem/{}/{}",
+            problem.contest_id, problem.index
+        );
+        match open::that(link) {
+            Ok(()) => Ok(()),
+            Err(err) => Err(format!("An error occurred when opening link {}", err)),
+        }
     }
 }
 
