@@ -1,7 +1,4 @@
-use std::{
-    collections::{BTreeSet, HashSet},
-    path::Path,
-};
+use std::{collections::HashSet, path::Path};
 
 use serde::{Deserialize, Serialize};
 
@@ -10,8 +7,16 @@ pub struct Problemset {
     pub filtered_problem: Vec<Problem>,
     pub solved: HashSet<Problem>,
     pub current_index: usize, // current_problem: core::slice::Iter<Problem>,
+    pub show_solved: bool,
     pub filter: Filter,
     pub directory: String,
+}
+
+pub enum SortProblem {
+    AscBySolved,
+    DscBySolved,
+    AscByRating,
+    DscByRating,
 }
 
 impl Problemset {
@@ -21,6 +26,7 @@ impl Problemset {
             filtered_problem: vec![],
             solved: HashSet::new(),
             current_index: 0,
+            show_solved: true,
             filter: Filter::default(),
             directory: String::new(),
         }
@@ -54,7 +60,32 @@ impl Problemset {
             .collect();
         Ok(())
     }
+    pub fn sort_problems(&mut self, sort_type: SortProblem) -> Result<(), String> {
+        let sort_function = match sort_type {
+            SortProblem::AscBySolved => {
+                |x: &Problem, y: &Problem| x.solved_count.cmp(&y.solved_count)
+            }
+            SortProblem::AscByRating => |x: &Problem, y: &Problem| x.rating.cmp(&y.rating),
+            SortProblem::DscBySolved => {
+                |x: &Problem, y: &Problem| x.solved_count.cmp(&y.solved_count).reverse()
+            }
+            SortProblem::DscByRating => {
+                |x: &Problem, y: &Problem| x.rating.cmp(&y.rating).reverse()
+            }
+        };
+        self.filtered_problem.sort_by(sort_function);
+        Ok(())
+    }
     pub fn get_problem(&mut self) -> Result<Problem, String> {
+        if !self.show_solved {
+            while self.current_index < self.filtered_problem.len()
+                && self
+                    .solved
+                    .contains(&self.filtered_problem[self.current_index])
+            {
+                self.current_index += 1;
+            }
+        }
         if self.filtered_problem.len() > 0 && self.current_index < self.filtered_problem.len() {
             return Ok(self.filtered_problem[self.current_index].clone());
         }
@@ -95,8 +126,8 @@ impl Filter {
         if p.rating > self.rating.1 || p.rating < self.rating.0 {
             return false;
         }
-        for t in &p.tags {
-            if !self.tags.contains(t) {
+        for t in &self.tags {
+            if !p.tags.contains(t) {
                 return false;
             }
         }
@@ -107,8 +138,8 @@ impl Filter {
 #[derive(Debug, Serialize, Deserialize, Clone, PartialEq, Eq, Hash)]
 #[serde(rename_all = "camelCase")]
 pub struct Problem {
-    pub rating: usize,
     #[serde(default)]
+    pub rating: usize,
     pub contest_id: i64,
     pub index: String,
     #[serde(default)]

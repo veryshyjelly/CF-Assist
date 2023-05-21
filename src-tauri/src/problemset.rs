@@ -1,8 +1,9 @@
-use crate::problem::{MyCfResult, Problem, Problemset, SolvedResult};
+use crate::problem::{MyCfResult, Problem, Problemset, SolvedResult, SortProblem};
 use reqwest::Client;
 use std::{
     collections::HashSet,
     fs,
+    io::Write,
     path::{Path, PathBuf},
     sync::Mutex,
 };
@@ -46,7 +47,8 @@ pub async fn get_problemset(problemset: tauri::State<'_, ProblemsetState>) -> Re
 #[tauri::command]
 pub async fn fetch_solved(problemset: tauri::State<'_, ProblemsetState>) -> Result<bool, String> {
     let dir = problemset.0.lock().unwrap().directory.clone();
-    let solved_file: PathBuf = Path::new(&dir).into();
+    let mut solved_file: PathBuf = Path::new(&dir).into();
+    solved_file.push("solved.json");
     if solved_file.is_file() {
         let mut solved: HashSet<Problem> = HashSet::new();
         serde_json::from_str::<SolvedResult>(&fs::read_to_string(solved_file).unwrap())
@@ -61,6 +63,31 @@ pub async fn fetch_solved(problemset: tauri::State<'_, ProblemsetState>) -> Resu
         return Err("cannot find solved.json file".to_string());
     }
     Ok(true)
+}
+
+#[tauri::command]
+pub async fn create_solved(problemset: tauri::State<'_, ProblemsetState>) -> Result<(), String> {
+    let mut file = match fs::File::create(Path::new(&problemset.0.lock().unwrap().directory)) {
+        Ok(file) => file,
+        Err(_) => {
+            return Err("error while creating file".to_string());
+        }
+    };
+    let solved_result = SolvedResult {
+        result: problemset
+            .0
+            .lock()
+            .unwrap()
+            .solved
+            .clone()
+            .into_iter()
+            .collect(),
+    };
+    match file.write_all(serde_json::to_string(&solved_result).unwrap().as_bytes()) {
+        Err(_) => return Err("error while writing to file".to_string()),
+        Ok(_) => {}
+    };
+    Ok(())
 }
 
 #[tauri::command]
@@ -121,4 +148,23 @@ pub async fn problem_solved(problemset: tauri::State<'_, ProblemsetState>) -> Re
         .clone();
     problemset.0.lock().unwrap().solved.insert(p);
     Ok(())
+}
+
+#[tauri::command]
+pub async fn sort_problems(
+    sort_by: String,
+    problemset: tauri::State<'_, ProblemsetState>,
+) -> Result<(), String> {
+    let sort_function = if sort_by == "DSC_BY_SOLVED" {
+        SortProblem::DscBySolved
+    } else if sort_by == "ASC_BY_SOLVED" {
+        SortProblem::AscBySolved
+    } else if sort_by == "DSC_BY_RATING" {
+        SortProblem::DscByRating
+    } else if sort_by == "ASC_BY_RATING" {
+        SortProblem::AscByRating
+    } else {
+        return Err("invalid sort type".to_string());
+    };
+    problemset.0.lock().unwrap().sort_problems(sort_function)
 }

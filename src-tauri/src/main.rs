@@ -3,6 +3,7 @@
 
 mod problem;
 mod problemset;
+mod testcase;
 
 use problemset::*;
 
@@ -20,6 +21,8 @@ fn main() {
             prev_problem,
             fetch_solved,
             problem_solved,
+            create_solved,
+            sort_problems,
         ])
         .run(tauri::generate_context!())
         .expect("error while running tauri application");
