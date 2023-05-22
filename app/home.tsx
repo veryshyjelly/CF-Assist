@@ -75,6 +75,7 @@ const Home = (props: { tags: string[], rating: [number, number] }) => {
                 setIndexMax(r.length)
                 // @ts-ignore 
                 setTestCases(r);
+                setVerdict([{ verdict: "Run code", output: "" }]);
                 notifications.show({
                     id: "got_testcases",
                     message: "Fetched test cases",
