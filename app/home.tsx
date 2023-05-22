@@ -2,7 +2,7 @@ import { Textarea, SegmentedControl, Switch, Text, LoadingOverlay } from "@manti
 import { ChangeEvent, useEffect, useState } from "react";
 import { get_problem, get_testcases, next_problem, prev_problem, problem_solved, create_file, open_link, set_hide_solved, judge } from "./functions";
 import { notifications } from "@mantine/notifications";
-import { IconCheck, IconX } from "@tabler/icons-react";
+import { IconCheck } from "@tabler/icons-react";
 
 const Home = (props: { tags: string[], rating: [number, number] }) => {
     const { tags, rating } = props;
@@ -44,27 +44,17 @@ const Home = (props: { tags: string[], rating: [number, number] }) => {
         setHideSolved(e.currentTarget.checked);
         set_hide_solved(e.currentTarget.checked);
     }
-    const createFileSwitch = (e: ChangeEvent<HTMLInputElement>) => {
-        setCreateFile(e.currentTarget.checked);
-        if (e.currentTarget.checked) {
-            create_file();
-        }
-    }
-    const openBrowserSwitch = (e: ChangeEvent<HTMLInputElement>) => {
-        setShouldOpenBrowser(e.currentTarget.checked);
-        if (e.currentTarget.checked) {
-            open_link();
-        }
-    }
 
     useEffect(() => {
         if (createFile) {
             create_file();
         }
+    }, [createFile, problem])
+    useEffect(() => {
         if (shouldOpenBrowser) {
             open_link();
         }
-    }, [problem])
+    }, [shouldOpenBrowser, problem])
 
 
     useEffect(() => {
@@ -75,7 +65,8 @@ const Home = (props: { tags: string[], rating: [number, number] }) => {
                 setIndexMax(r.length)
                 // @ts-ignore 
                 setTestCases(r);
-                setVerdict([{ verdict: "Run code", output: "" }]);
+                // @ts-ignore 
+                setVerdict(Array(r.length).fill({ verdict: "Run code", output: "" }));
                 notifications.show({
                     id: "got_testcases",
                     message: "Fetched test cases",
@@ -101,7 +92,8 @@ const Home = (props: { tags: string[], rating: [number, number] }) => {
                     { label: "Result", value: "result" }
                 ]} className="bg-white/50" />
                 <div className="relative flex flex-col left-20">
-                    <Switch label="create file" checked={createFile} onChange={createFileSwitch}
+                    <Switch label="create file" checked={createFile}
+                        onChange={(e) => setCreateFile(e.currentTarget.checked)}
                         my={'auto'} offLabel="OFF" onLabel="ON " className="select-none" />
                     <Switch label="hide solved" checked={hideSolved} onChange={hideSolvedSwitch}
                         my={'auto'} offLabel="OFF" onLabel="ON " className="select-none" />
@@ -111,7 +103,8 @@ const Home = (props: { tags: string[], rating: [number, number] }) => {
 
             <div className="h-[32.125rem] overflow-hidden">
                 <div className="mt-14 h-[31rem] flex flex-row overflow-hidden">
-                    <Switch label="open browser" checked={shouldOpenBrowser} onChange={openBrowserSwitch}
+                    <Switch label="open browser" checked={shouldOpenBrowser}
+                        onChange={(e) => setShouldOpenBrowser(e.currentTarget.checked)}
                         className="absolute left-20 font-semibold select-none" offLabel="OFF" onLabel="ON" />
                     <div className="px-24 py-20">
                         {indexMax > 0 &&
