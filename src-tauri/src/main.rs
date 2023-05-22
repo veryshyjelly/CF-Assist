@@ -1,11 +1,13 @@
 // Prevents additional console window on Windows in release, DO NOT REMOVE!!
 #![cfg_attr(not(debug_assertions), windows_subsystem = "windows")]
 
+mod commands;
+mod judge;
 mod problem;
 mod problemset;
 mod testcase;
 
-use problemset::*;
+use commands::*;
 
 fn main() {
     tauri::Builder::default()
@@ -28,6 +30,7 @@ fn main() {
             set_hide_solved,
             create_file,
             open_link,
+            judge
         ])
         .run(tauri::generate_context!())
         .expect("error while running tauri application");

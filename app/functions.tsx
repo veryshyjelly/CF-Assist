@@ -248,3 +248,19 @@ export const open_link = async () => {
         });
     }
 }
+
+export const judge = async () => {
+    let res;
+    try {
+        res = await invoke('judge');
+    } catch (err) {
+        console.log(err);
+        notifications.show({
+            id: "file_not_judged",
+            message: "Error while testing solution",
+            icon: <IconX size="1.1rem" />,
+            color: "red"
+        });
+    }
+    return res;
+}

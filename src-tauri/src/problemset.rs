@@ -1,228 +1,228 @@
-use crate::problem::{MyCfResult, Problem, Problemset, SolvedResult, SortProblem};
-use crate::testcase::{get_testcases, Testcase};
-use reqwest::Client;
+use crate::judge::{test_solution, Verdict};
+use crate::problem::{Problem, SolvedResult};
+use crate::testcase::Testcase;
 use std::{
-    collections::HashSet,
-    fs,
-    io::Write,
+    collections::{HashMap, HashSet},
+    fs::{self, File},
     path::{Path, PathBuf},
-    sync::Mutex,
 };
 
-pub struct ProblemsetState(Mutex<Problemset>);
-
-impl ProblemsetState {
-    pub fn new() -> ProblemsetState {
-        ProblemsetState(Mutex::new(Problemset::new()))
-    }
+pub struct Problemset {
+    pub problems: Vec<Problem>,
+    pub filtered_problem: Vec<Problem>,
+    pub solved: HashSet<Problem>,
+    pub testcases: HashMap<String, Vec<Testcase>>,
+    pub current_index: usize, // current_problem: core::slice::Iter<Problem>,
+    pub show_solved: bool,
+    pub filter: Filter,
+    pub directory: String,
 }
 
-#[tauri::command]
-pub async fn get_problemset(problemset: tauri::State<'_, ProblemsetState>) -> Result<(), String> {
-    let resp: MyCfResult = serde_json::from_str(
-        &Client::new()
-            .get("https://codeforces.com/api/problemset.problems/")
-            .send()
-            .await
-            .expect("error while getting data")
-            .text()
-            .await
-            .expect("error while reading data"),
-    )
-    .expect("error while parsing");
-
-    let mut problems = resp.result.problems;
-    for stat in resp.result.problem_statistics {
-        problems
-            .iter_mut()
-            .filter(|x| x.contest_id == stat.contest_id && x.index == stat.index)
-            .for_each(|x| x.solved_count = stat.solved_count);
-    }
-
-    problemset.0.lock().unwrap().problems = problems;
-
-    // println!("{:?}", problemset.0.lock().unwrap().problems);
-    Ok(())
+pub enum SortProblem {
+    AscBySolved,
+    DscBySolved,
+    AscByRating,
+    DscByRating,
 }
 
-#[tauri::command]
-pub async fn get_testcase(
-    contest_id: i64,
-    index: String,
-    problemset: tauri::State<'_, ProblemsetState>,
-) -> Result<Vec<Testcase>, String> {
-    match problemset
-        .0
-        .lock()
-        .unwrap()
-        .get_testcase(contest_id, &index)
-    {
-        Some(v) => Ok(v.to_vec()),
-        None => Err("cannot get testcases".to_string()),
-    }
-}
-
-#[tauri::command]
-pub async fn fetch_testcase(
-    contest_id: i64,
-    index: String,
-    problemset: tauri::State<'_, ProblemsetState>,
-) -> Result<Vec<Testcase>, String> {
-    match get_testcases(contest_id, &index).await {
-        Ok(v) => Ok({
-            problemset
-                .0
-                .lock()
-                .unwrap()
-                .save_testcase(contest_id, &index, v.clone())
-                .unwrap();
-            v
-        }),
-        Err(_) => Err("cannot get testcases".to_string()),
-    }
-}
-
-#[tauri::command]
-pub async fn fetch_solved(problemset: tauri::State<'_, ProblemsetState>) -> Result<bool, String> {
-    let dir = problemset.0.lock().unwrap().directory.clone();
-    let mut solved_file: PathBuf = Path::new(&dir).into();
-    solved_file.push("solved.json");
-    if solved_file.is_file() {
-        let mut solved: HashSet<Problem> = HashSet::new();
-        serde_json::from_str::<SolvedResult>(&fs::read_to_string(solved_file).unwrap())
-            .unwrap()
-            .result
-            .into_iter()
-            .for_each(|p| {
-                solved.insert(p);
-            });
-        problemset.0.lock().unwrap().solved = solved;
-    } else {
-        return Err("cannot find solved.json file".to_string());
-    }
-    Ok(true)
-}
-
-#[tauri::command]
-pub async fn create_solved(problemset: tauri::State<'_, ProblemsetState>) -> Result<(), String> {
-    let dir = problemset.0.lock().unwrap().directory.clone();
-    let mut solved_file: PathBuf = Path::new(&dir).into();
-    solved_file.push("solved.json");
-    let mut file = match fs::File::create(solved_file) {
-        Ok(file) => file,
-        Err(err) => {
-            println!("{}", err);
-            return Err("error while creating file".to_string());
+impl Problemset {
+    pub fn new() -> Problemset {
+        Problemset {
+            problems: vec![],
+            filtered_problem: vec![],
+            solved: HashSet::new(),
+            testcases: HashMap::new(),
+            current_index: 0,
+            show_solved: true,
+            filter: Filter::default(),
+            directory: String::new(),
         }
-    };
-    let solved_result = SolvedResult {
-        result: problemset
-            .0
-            .lock()
-            .unwrap()
-            .solved
+    }
+    pub fn set_directory(&mut self, dir: String) -> Result<(), String> {
+        if Path::new(&dir).is_dir() {
+            println!("directory set to {}", dir);
+            self.directory = dir;
+            Ok(())
+        } else {
+            println!("directory not found");
+            Err("directory not found".to_string())
+        }
+    }
+    pub fn set_rating(&mut self, min: usize, max: usize) -> Result<(), String> {
+        self.filter.rating = (min, max);
+        println!("rating set to {}-{}", min, max);
+        Ok(())
+    }
+    pub fn set_tags(&mut self, tags: Vec<String>) -> Result<(), String> {
+        println!("tags set {:?}", tags);
+        self.filter.tags = tags;
+        Ok(())
+    }
+    pub fn filter_problems(&mut self) -> Result<(), String> {
+        self.filtered_problem = self
+            .problems
             .clone()
             .into_iter()
-            .collect(),
-    };
-    match file.write_all(serde_json::to_string(&solved_result).unwrap().as_bytes()) {
-        Err(_) => return Err("error while writing to file".to_string()),
-        Ok(_) => {}
-    };
-    Ok(())
+            .filter(|p| self.filter.filter(p))
+            .collect();
+        Ok(())
+    }
+    pub fn sort_problems(&mut self, sort_type: SortProblem) -> Result<(), String> {
+        let sort_function = match sort_type {
+            SortProblem::AscBySolved => {
+                |x: &Problem, y: &Problem| x.solved_count.cmp(&y.solved_count)
+            }
+            SortProblem::AscByRating => |x: &Problem, y: &Problem| x.rating.cmp(&y.rating),
+            SortProblem::DscBySolved => {
+                |x: &Problem, y: &Problem| x.solved_count.cmp(&y.solved_count).reverse()
+            }
+            SortProblem::DscByRating => {
+                |x: &Problem, y: &Problem| x.rating.cmp(&y.rating).reverse()
+            }
+        };
+        self.filtered_problem.sort_by(sort_function);
+        Ok(())
+    }
+    pub fn get_problem(&mut self) -> Result<Problem, String> {
+        if !self.show_solved {
+            while self.current_index < self.filtered_problem.len()
+                && self
+                    .solved
+                    .contains(&self.filtered_problem[self.current_index])
+            {
+                self.current_index += 1;
+            }
+        }
+        if (self.show_solved
+            || !self
+                .solved
+                .contains(&self.filtered_problem[self.current_index]))
+            && self.filtered_problem.len() > 0
+            && self.current_index < self.filtered_problem.len()
+        {
+            return Ok(self.filtered_problem[self.current_index].clone());
+        }
+        Err("couldn't get problem".to_string())
+    }
+    pub fn next_problem(&mut self) -> Result<Problem, String> {
+        if self.current_index < self.filtered_problem.len() - 1 {
+            self.current_index += 1;
+            return Ok(self.filtered_problem[self.current_index].clone());
+        }
+        Err("problems exhausted".to_string())
+    }
+    pub fn prev_problem(&mut self) -> Result<Problem, String> {
+        if self.current_index > 0 {
+            self.current_index -= 1;
+        }
+        while self.current_index > 0
+            && self
+                .solved
+                .contains(&self.filtered_problem[self.current_index])
+        {
+            self.current_index -= 1;
+        }
+        if self.current_index > 0 {
+            return Ok(self.filtered_problem[self.current_index].clone());
+        }
+        Err("no previous problem".to_string())
+    }
+    pub fn problem_solved(&mut self) -> Result<(), String> {
+        let p = self.filtered_problem[self.current_index].clone();
+        self.solved.insert(p);
+
+        let dir = self.directory.clone();
+        let mut solved_file: PathBuf = Path::new(&dir).into();
+        solved_file.push("solved.json");
+        let solved_result = serde_json::to_string(&SolvedResult {
+            result: self.solved.clone().into_iter().collect(),
+        })
+        .unwrap();
+
+        match fs::write(solved_file, solved_result) {
+            Ok(_) => Ok(()),
+            Err(err) => {
+                println!("{}", err);
+                return Err("error while writing to file".to_string());
+            }
+        }
+    }
+    pub fn get_testcase(&self, contest_id: i64, index: &String) -> Option<&Vec<Testcase>> {
+        self.testcases.get(&format!("{}{}", contest_id, index))
+    }
+    pub fn save_testcase(
+        &mut self,
+        contest_id: i64,
+        index: &String,
+        cases: Vec<Testcase>,
+    ) -> Result<(), String> {
+        self.testcases
+            .insert(format!("{}{}", contest_id, index), cases);
+        Ok(())
+    }
+    pub fn create_file(&mut self) -> Result<(), String> {
+        let mut file_name = self.get_problem()?.name;
+        file_name = file_name
+            .to_lowercase()
+            .trim()
+            .split(" ")
+            .collect::<Vec<&str>>()
+            .join("_")
+            + ".rs";
+        let mut new_file: PathBuf = Path::new(&(self.directory.clone() + "/src/bin")).into();
+        // new_file.push("src/bin");
+        new_file.push(&file_name);
+        if !new_file.is_file() {
+            return match File::create(new_file) {
+                Ok(_) => Ok(()),
+                Err(err) => Err(format!("error while creating file {}", err)),
+            };
+        }
+        Ok(())
+    }
+    pub fn open_link(&mut self) -> Result<(), String> {
+        let problem = self.get_problem()?;
+        let link = format!(
+            "https://codeforces.com/problemset/problem/{}/{}",
+            problem.contest_id, problem.index
+        );
+        match open::that(link) {
+            Ok(()) => Ok(()),
+            Err(err) => Err(format!("An error occurred when opening link {}", err)),
+        }
+    }
+    pub fn judge(&mut self) -> Result<Vec<Verdict>, String> {
+        let prob = self.get_problem().unwrap();
+        let case = self.get_testcase(prob.contest_id, &prob.index).unwrap();
+        let dir = self.directory.clone();
+        test_solution(&dir, &prob.name, case.clone())
+    }
 }
 
-#[tauri::command]
-pub async fn set_directory(
-    directory: String,
-    problemset: tauri::State<'_, ProblemsetState>,
-) -> Result<(), String> {
-    problemset.0.lock().unwrap().set_directory(directory)
+pub struct Filter {
+    pub tags: Vec<String>,
+    pub rating: (usize, usize),
 }
 
-#[tauri::command]
-pub async fn set_rating(
-    min: usize,
-    max: usize,
-    problemset: tauri::State<'_, ProblemsetState>,
-) -> Result<(), String> {
-    problemset.0.lock().unwrap().set_rating(min, max)?;
-    problemset.0.lock().unwrap().filter_problems()
+impl Default for Filter {
+    fn default() -> Self {
+        Filter {
+            tags: vec![],
+            rating: (800, 3500),
+        }
+    }
 }
 
-#[tauri::command]
-pub async fn set_tags(
-    tags: Vec<String>,
-    problemset: tauri::State<'_, ProblemsetState>,
-) -> Result<(), String> {
-    problemset.0.lock().unwrap().set_tags(tags)?;
-    problemset.0.lock().unwrap().filter_problems()
-}
-
-#[tauri::command]
-pub async fn filter_problems(problemset: tauri::State<'_, ProblemsetState>) -> Result<(), String> {
-    problemset.0.lock().unwrap().filter_problems()
-}
-
-#[tauri::command]
-pub async fn get_problem(problemset: tauri::State<'_, ProblemsetState>) -> Result<Problem, String> {
-    problemset.0.lock().unwrap().get_problem()
-}
-
-#[tauri::command]
-pub async fn next_problem(
-    problemset: tauri::State<'_, ProblemsetState>,
-) -> Result<Problem, String> {
-    problemset.0.lock().unwrap().next_problem()
-}
-
-#[tauri::command]
-pub async fn prev_problem(
-    problemset: tauri::State<'_, ProblemsetState>,
-) -> Result<Problem, String> {
-    problemset.0.lock().unwrap().prev_problem()
-}
-
-#[tauri::command]
-pub async fn problem_solved(problemset: tauri::State<'_, ProblemsetState>) -> Result<(), String> {
-    problemset.0.lock().unwrap().problem_solved()
-}
-
-#[tauri::command]
-pub async fn sort_problems(
-    sort_by: String,
-    problemset: tauri::State<'_, ProblemsetState>,
-) -> Result<(), String> {
-    let sort_function = if sort_by == "DSC_BY_SOLVED" {
-        SortProblem::DscBySolved
-    } else if sort_by == "ASC_BY_SOLVED" {
-        SortProblem::AscBySolved
-    } else if sort_by == "DSC_BY_RATING" {
-        SortProblem::DscByRating
-    } else if sort_by == "ASC_BY_RATING" {
-        SortProblem::AscByRating
-    } else {
-        return Err("invalid sort type".to_string());
-    };
-    problemset.0.lock().unwrap().sort_problems(sort_function)
-}
-
-#[tauri::command]
-pub async fn set_hide_solved(
-    value: bool,
-    problemset: tauri::State<'_, ProblemsetState>,
-) -> Result<(), String> {
-    problemset.0.lock().unwrap().show_solved = !value;
-    println!("show_solved set to {}", value);
-    Ok(())
-}
-
-#[tauri::command]
-pub async fn create_file(problemset: tauri::State<'_, ProblemsetState>) -> Result<(), String> {
-    problemset.0.lock().unwrap().create_file()
-}
-
-#[tauri::command]
-pub async fn open_link(problemset: tauri::State<'_, ProblemsetState>) -> Result<(), String> {
-    problemset.0.lock().unwrap().open_link()
+impl Filter {
+    pub fn filter(&self, p: &Problem) -> bool {
+        if p.rating > self.rating.1 || p.rating < self.rating.0 {
+            return false;
+        }
+        for t in &self.tags {
+            if !p.tags.contains(t) {
+                return false;
+            }
+        }
+        return true;
+    }
 }

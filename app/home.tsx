@@ -1,6 +1,6 @@
-import { Textarea, SegmentedControl, Switch } from "@mantine/core";
+import { Textarea, SegmentedControl, Switch, Text, LoadingOverlay } from "@mantine/core";
 import { ChangeEvent, useEffect, useState } from "react";
-import { get_problem, get_testcases, next_problem, prev_problem, problem_solved, create_file, open_link, set_hide_solved } from "./functions";
+import { get_problem, get_testcases, next_problem, prev_problem, problem_solved, create_file, open_link, set_hide_solved, judge } from "./functions";
 import { notifications } from "@mantine/notifications";
 import { IconCheck, IconX } from "@tabler/icons-react";
 
@@ -15,9 +15,22 @@ const Home = (props: { tags: string[], rating: [number, number] }) => {
         contestId: 0,
         index: "A"
     });
+    const [verdict, setVerdict] = useState([{ verdict: "Run code", output: "" }]);
     const [testcases, setTestCases] = useState<{ input: string, output: string }[]>();
     const [indexMax, setIndexMax] = useState(0);
     const [caseIndex, setCaseIndex] = useState(0);
+    const [testing, setTesting] = useState(false);
+
+    const judgeButton = async () => {
+        setTesting(true);
+        let res = await judge();
+        if (res) {
+            setShowResult("result");
+            // @ts-ignore
+            setVerdict(res);
+        }
+        setTesting(false);
+    }
 
     const home_get_problem = () => {
         get_problem().then(r => {
@@ -88,27 +101,36 @@ const Home = (props: { tags: string[], rating: [number, number] }) => {
                 ]} className="bg-white/50" />
                 <div className="relative flex flex-col left-20">
                     <Switch label="create file" checked={createFile} onChange={createFileSwitch}
-                        my={'auto'} offLabel="OFF" onLabel="ON " />
+                        my={'auto'} offLabel="OFF" onLabel="ON " className="select-none" />
                     <Switch label="hide solved" checked={hideSolved} onChange={hideSolvedSwitch}
-                        my={'auto'} offLabel="OFF" onLabel="ON " />
+                        my={'auto'} offLabel="OFF" onLabel="ON " className="select-none" />
                 </div>
             </div>
 
 
             <div className="h-[32.125rem] overflow-hidden">
-
-
                 <div className="mt-14 h-[31rem] flex flex-row overflow-hidden">
                     <Switch label="open browser" checked={shouldOpenBrowser} onChange={openBrowserSwitch}
-                        className="absolute left-20 font-semibold" offLabel="OFF" onLabel="ON" />
+                        className="absolute left-20 font-semibold select-none" offLabel="OFF" onLabel="ON" />
                     <div className="px-24 py-20">
-                        <SegmentedControl ml={200} onChange={(v) => setCaseIndex(parseInt(v) - 1)} value={`${caseIndex + 1}`} data={
-                            Array(indexMax).fill(0).map((_, i) => { return { label: `Case ${i + 1}`, value: `${i + 1}` } })
-                        } className="bg-white/50 mx-auto" size="md" orientation="vertical" />
+                        {indexMax > 0 &&
+                            <SegmentedControl ml={200} onChange={(v) => setCaseIndex(parseInt(v) - 1)} value={`${caseIndex + 1}`} data={
+                                Array(indexMax).fill(0).map((_, i) => { return { label: `Case ${i + 1}`, value: `${i + 1}` } }) || []
+                            } className="bg-white/50 mx-auto" size="md" orientation="vertical" />}
 
                     </div>
                     {showResult === 'result' && <>
-                        <div className="mt-12 h-[20rem] w-[18rem] font-[500] text-3xl bg-[#00b2ca] relative text-center">
+                        {/* <Text my={1000} c={
+                            (verdict === "AC") ? "green" : (verdict === "WA") ? "red" : "green"}>{verdict} Hello</Text> */}
+                        <div className="absolute left-80 text-3xl top-32 font-semibold whitespace-nowrap select-none"
+                            style={{
+                                color: (verdict[caseIndex].verdict === "Accepted") ? "#2cad40" :
+                                    (verdict[caseIndex].verdict === "Wrong Answer") ? "red" : "gray"
+                            }}
+                        >
+                            {verdict[caseIndex].verdict}
+                        </div>
+                        <div className="mt-12 h-[20rem] w-[18rem] font-[500] text-3xl bg-[#00b2ca] relative text-center select-none">
                             Answer
                             <Textarea value={testcases ? testcases[caseIndex]?.output : ""}
                                 className={`h-[18rem] w-[18rem] px-2 top-8 bg-[#ddccba] absolute`}
@@ -119,9 +141,9 @@ const Home = (props: { tags: string[], rating: [number, number] }) => {
                                     drop-shadow-xl absolute skew-x-[60deg]`}></div>
                         </div>
 
-                        <div className={`ml-20 h-[20rem] w-[18rem] font-[500] text-3xl bg-[#0077ca] relative text-center`}>
+                        <div className={`ml-20 h-[20rem] w-[18rem] font-[500] text-3xl bg-[#0077ca] relative text-center select-none`}>
                             Output
-                            <Textarea className={`h-[18rem] w-[18rem] px-2 top-8 bg-[#ddccba] absolute`}
+                            <Textarea value={verdict[caseIndex].output} className={`h-[18rem] w-[18rem] px-2 top-8 bg-[#ddccba] absolute`}
                                 variant="unstyled" maxRows={12} autosize />
                             <div className={`h-[20rem] w-[18rem] top-[9rem] left-[18rem] bg-[#0077ca] 
                                     drop-shadow-xl absolute skew-y-[45deg]`}></div>
@@ -130,7 +152,7 @@ const Home = (props: { tags: string[], rating: [number, number] }) => {
                         </div>
                     </>}
                     {showResult === 'testcase' && <>
-                        <div className="ml-16 mt-5 h-[20rem] w-[18rem] font-[500] text-3xl bg-[#00b2ca] relative text-center">
+                        <div className="ml-16 mt-5 h-[20rem] w-[18rem] font-[500] text-3xl bg-[#00b2ca] relative text-center select-none">
                             Input
                             <Textarea value={testcases ? testcases[caseIndex]?.input : ""}
                                 className={`h-[18rem] w-[18rem] px-2 top-8 bg-[#ddccba] absolute`}
@@ -144,7 +166,9 @@ const Home = (props: { tags: string[], rating: [number, number] }) => {
                 </div>
 
                 <div className="text-2xl font-medium justify-around flex flex-row -top-[6.5rem] relative">
-                    <div className="px-12 py-2 bg-white/50 rounded-lg cursor-pointer select-none 
+                    <LoadingOverlay visible={testing} className="mx-[3.25rem] w-[9rem] rounded-lg" />
+                    <div onClick={judgeButton}
+                        className="px-12 py-2 bg-white/50 rounded-lg cursor-pointer select-none 
                         hover:shadow hover:bg-white/60 active:bg-white/70">
                         Test
                     </div>
