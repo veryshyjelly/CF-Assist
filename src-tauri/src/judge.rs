@@ -1,5 +1,6 @@
 use std::{
     io::Write,
+    os::windows::process::CommandExt,
     path::{Path, PathBuf},
     process::{Command, Stdio},
 };
@@ -42,6 +43,7 @@ pub fn compile_solution(dir: &String, name: &String) -> Result<PathBuf, String> 
         .arg(sol_file)
         .arg("-o")
         .arg(out_file.clone())
+        .creation_flags(0x08000000)
         .status()
     {
         Ok(_) => Ok(out_file),
@@ -65,6 +67,7 @@ pub fn test_solution(
         let mut sol_process = Command::new(compiled_file.clone())
             .stdin(Stdio::piped())
             .stdout(Stdio::piped())
+            .creation_flags(0x08000000)
             .spawn()
             .unwrap();
         sol_process
